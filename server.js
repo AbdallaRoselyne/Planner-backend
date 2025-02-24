@@ -2,6 +2,8 @@ const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
+const projectsRoutes = require("./routes/projects");
+const requestsRoutes = require("./routes/requests");
 const membersRoutes = require("./routes/members"); // Import members routes
 const cors = require("cors");
 
@@ -15,7 +17,7 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: ["http://localhost:3000"], // Add more origins if needed
+    origin: ["http://localhost:3000"], 
     credentials: true,
   })
 );
@@ -24,6 +26,8 @@ app.use(express.json());
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/api/requests", requestsRoutes);
+app.use("/api/projects", projectsRoutes);
 app.use("/api/members", membersRoutes); // Added members route
 
 app.get("/", (req, res) => {
