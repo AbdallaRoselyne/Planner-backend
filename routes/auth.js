@@ -17,26 +17,30 @@ router.post("/login", async (req, res) => {
   try {
     let user = await User.findOne({ email });
 
+    // If user doesn't exist, create a new user
     if (!user) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      user = new User({ email, password: hashedPassword });
+      const role = email === "admin@prodesign.mu" || email === "planner@prodesign.mu" ? "admin" : "user";
+      user = new User({ email, password: hashedPassword, role });
       await user.save();
     }
 
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Generate JWT token with role
     const token = jwt.sign(
-      { id: user._id, email: user.email },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       {
-        expiresIn: "1h",
+        expiresIn: "20min",
       }
     );
 
-    res.json({ token, message: "Login successful" });
+    res.json({ token, role: user.role, message: "Login successful" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

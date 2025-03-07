@@ -1,4 +1,3 @@
-// backend/middleware/passport.js
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const User = require('../models/User');
@@ -11,16 +10,21 @@ passport.use(
     }
     try {
       let user = await User.findOne({ email });
+
+      // If user doesn't exist, create a new user
       if (!user) {
         const hashedPassword = await bcrypt.hash(password, 10);
-        user = new User({ email, password: hashedPassword });
+        const role = email === "admin@prodesign.mu" || email === "planner@prodesign.mu" ? "admin" : "user";
+        user = new User({ email, password: hashedPassword, role });
         await user.save();
       }
-      
+
+      // Check password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return done(null, false, { message: 'Invalid email or password' });
       }
+
       return done(null, user);
     } catch (error) {
       return done(error);

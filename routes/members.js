@@ -4,7 +4,7 @@ const Member = require("../models/Member");
 
 // Add a new member
 router.post("/", async (req, res) => {
-  const { name, email, jobTitle, department, billableRate } = req.body;
+  const { name, email, jobTitle, discipline, department, billableRate } = req.body;
 
   // Validate email domain
   const emailRegex = /^[a-zA-Z0-9._%+-]+@prodesign\.mu$/;
@@ -13,12 +13,12 @@ router.post("/", async (req, res) => {
   }
 
   // Validate other fields
-  if (!name || !jobTitle || !department || !billableRate) {
+  if (!name || !jobTitle || !discipline || !department || !billableRate) {
     return res.status(400).json({ message: "All fields are required." });
   }
 
   try {
-    const newMember = new Member({ name, email, jobTitle, department, billableRate });
+    const newMember = new Member({ name, email, jobTitle, discipline, department, billableRate });
     const savedMember = await newMember.save();
     res.status(201).json(savedMember);
   } catch (error) {
@@ -39,7 +39,7 @@ router.get("/", async (req, res) => {
 // Update a member
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { name, email, jobTitle, department, billableRate } = req.body;
+  const { name, email, jobTitle, discipline, department, billableRate } = req.body;
 
   // Validate email domain
   const emailRegex = /^[a-zA-Z0-9._%+-]+@prodesign\.mu$/;
@@ -50,7 +50,7 @@ router.put("/:id", async (req, res) => {
   try {
     const updatedMember = await Member.findByIdAndUpdate(
       id,
-      { name, email, jobTitle, department, billableRate },
+      { name, email, jobTitle, discipline, department, billableRate },
       { new: true }
     );
 

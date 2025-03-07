@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
+const tasksRoutes = require("./routes/tasks");
 const projectsRoutes = require("./routes/projects");
 const requestsRoutes = require("./routes/requests");
 const membersRoutes = require("./routes/members"); // Import members routes
@@ -25,8 +26,10 @@ app.use(
 app.use(express.json());
 
 // Routes
+app.use("/", authRoutes);
 app.use("/auth", authRoutes);
 app.use("/api/requests", requestsRoutes);
+app.use("/api/tasks", tasksRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/members", membersRoutes); // Added members route
 
