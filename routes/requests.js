@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ➤ Approve a request
+// ➤ Approve a request (Keep in `requests`, Copy to `tasks`)
 router.put("/:id/approve", async (req, res) => {
   const { approvedHours, timeSlot } = req.body;
 
@@ -36,7 +36,13 @@ router.put("/:id/approve", async (req, res) => {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ error: "Request not found" });
 
-    // Save the approved task to the Task collection
+    // Update the request in `requests`
+    request.status = "Approved";
+    request.approvedHours = approvedHours;
+    request.timeSlot = timeSlot;
+    await request.save();
+
+    // Save the approved task in `tasks`
     const newTask = new Task({
       requestedName: request.requestedName,
       email: request.email,
@@ -54,19 +60,13 @@ router.put("/:id/approve", async (req, res) => {
 
     await newTask.save();
 
-    // Remove the request from the Request collection
-    await Request.findByIdAndDelete(req.params.id);
-
-    // Send email notification (placeholder for email integration)
-    sendEmailNotification(newTask);
-
     res.json({ message: "Request approved", task: newTask });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ➤ Reject a request
+// ➤ Reject a request (Keep in `requests`, Copy to `tasks`)
 router.put("/:id/reject", async (req, res) => {
   const { comment } = req.body;
 
@@ -78,7 +78,12 @@ router.put("/:id/reject", async (req, res) => {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ error: "Request not found" });
 
-    // Save the rejected task to the Task collection
+    // Update the request in `requests`
+    request.status = "Rejected";
+    request.comment = comment;
+    await request.save();
+
+    // Save the rejected task in `tasks`
     const newTask = new Task({
       requestedName: request.requestedName,
       email: request.email,
@@ -95,19 +100,10 @@ router.put("/:id/reject", async (req, res) => {
 
     await newTask.save();
 
-    // Remove the request from the Request collection
-    await Request.findByIdAndDelete(req.params.id);
-
     res.json({ message: "Request rejected", task: newTask });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Placeholder function for sending email notifications
-const sendEmailNotification = (task) => {
-  console.log(`Email sent to ${task.email}: Your task has been approved.`);
-  // Integrate with an email service (e.g., Nodemailer) here
-};
 
 module.exports = router;

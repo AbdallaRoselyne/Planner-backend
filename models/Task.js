@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema({
   requestedName: { type: String, required: true },
-  email: { type: String, required: true }, // Add email field
+  email: { type: String, required: true },
   Task: { type: String, required: true },
   hours: { type: Number, required: true },
   projectCode: { type: String, required: true },
@@ -15,6 +15,8 @@ const taskSchema = new mongoose.Schema({
   approvedHours: { type: Number, default: 0 }, // For approved tasks
   timeSlot: { type: String, default: "" }, // For approved tasks
   date: { type: Date, default: Date.now },
+
 });
 
 module.exports = mongoose.model("Task", taskSchema);
+
