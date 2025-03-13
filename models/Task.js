@@ -10,13 +10,11 @@ const taskSchema = new mongoose.Schema({
   requester: { type: String, required: true },
   department: { type: String, required: true },
   Notes: { type: String, default: "" },
-  status: { type: String, enum: ["Approved", "Rejected"], required: true },
-  comment: { type: String, default: "" }, // For rejected tasks
-  approvedHours: { type: Number, default: 0 }, // For approved tasks
-  timeSlot: { type: String, default: "" }, // For approved tasks
+  status: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
+  comment: { type: String, default: "" },
+  approvedHours: { type: Number, default: 0 },
+  timeSlot: { type: String, default: "" },
   date: { type: Date, default: Date.now },
-
 });
 
 module.exports = mongoose.model("Task", taskSchema);
-

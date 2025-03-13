@@ -7,6 +7,7 @@ const projectsRoutes = require("./routes/projects");
 const requestsRoutes = require("./routes/requests");
 const membersRoutes = require("./routes/members"); // Import members routes
 const cors = require("cors");
+const WebSocket = require("ws");
 
 dotenv.config();
 
@@ -22,6 +23,17 @@ app.use(
     credentials: true,
   })
 );
+
+// WebSocket server
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on("connection", (ws) => {
+  console.log("New client connected");
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+});
 
 app.use(express.json());
 
