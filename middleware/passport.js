@@ -14,7 +14,7 @@ passport.use(
       // If user doesn't exist, create a new user
       if (!user) {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const role = email === "admin@prodesign.mu" || email === "planner@prodesign.mu" ? "admin" : "user";
+        const role = email === "farahnaz.sairally@prodesign.mu" || email === "planner@prodesign.mu" ? "admin" : "user";
         user = new User({ email, password: hashedPassword, role });
         await user.save();
       }

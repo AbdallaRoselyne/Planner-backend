@@ -1,15 +1,59 @@
 const express = require("express");
 const router = express.Router();
 const Task = require("../models/Task");
-const User = require("../models/User");
 
-// Fetch all tasks (approved/rejected)
+// Helper function to normalize dates
+const normalizeDate = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+// Enhanced task fetching with week-based filtering
 router.get("/", async (req, res) => {
+  const { status, project, weekStart } = req.query;
+  const filter = {};
+
+  if (status) filter.status = status;
+  if (project) filter.project = project;
+
   try {
-    const tasks = await Task.find();
-    res.json(tasks);
+    let tasks = await Task.find(filter).sort({ createdAt: -1 });
+
+    // If weekStart is provided, filter tasks for that week
+    if (weekStart) {
+      const startDate = new Date(weekStart);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 7); // Get the entire week
+
+      tasks = tasks.filter(task => {
+        if (task.weekHours && task.weekHours.length > 0) {
+          return task.weekHours.some(wh => {
+            const whDate = new Date(wh.date);
+            return whDate >= startDate && whDate < endDate;
+          });
+        }
+        return false;
+      });
+    }
+
+    // Flatten tasks with weekHours
+    const flattenedTasks = tasks.flatMap((task) => {
+      if (task.status === "Approved" && task.weekHours && task.weekHours.length > 0) {
+        return task.weekHours.map((weekHour) => ({
+          ...task.toObject(),
+          _id: `${task._id}-${weekHour.date}`,
+          approvedHours: weekHour.hours,
+          date: weekHour.date,
+          weekHours: task.weekHours // Include all week hours for editing
+        }));
+      }
+      return [task];
+    });
+
+    res.json(flattenedTasks);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch tasks" });
+    res.status(500).json({ message: "Failed to fetch tasks", error: error.message });
   }
 });
 
@@ -19,46 +63,111 @@ router.get("/user/:email", async (req, res) => {
     const tasks = await Task.find({ email: req.params.email }); // Filter by email
     res.json(tasks);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch user tasks" });
+    res.status(500).json({ message: "Failed to fetch user tasks", error: error.message });
   }
 });
 
-// Update a task (approve/reject)
+// Enhanced task update endpoint
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { status, comment, approvedHours, timeSlot } = req.body;
+  const { weekHours, ...updateData } = req.body;
 
   try {
-    // Find the task by ID
     const task = await Task.findById(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    // Convert dates to proper Date objects if weekHours are provided
+    if (weekHours && Array.isArray(weekHours)) {
+      task.weekHours = weekHours.map(wh => ({
+        day: wh.day,
+        date: new Date(wh.date),
+        hours: wh.hours
+      }));
     }
 
-    // Update the task's fields
-    task.status = status;
-    task.comment = comment;
-    task.approvedHours = approvedHours;
-    task.timeSlot = timeSlot;
+    // Update other fields except _id and internal fields
+    const { _id, __v, createdAt, ...safeUpdate } = updateData;
+    Object.assign(task, safeUpdate);
     task.updatedAt = Date.now();
 
-    // Save the updated task
     await task.save();
-
-    res.json(task);
+    
+    // Return the updated task with proper weekHours
+    const result = task.toObject();
+    result.weekHours = result.weekHours.map(wh => ({
+      ...wh,
+      date: wh.date.toISOString()
+    }));
+    
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Update error:", error);
+    res.status(500).json({ 
+      message: "Failed to update task", 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
-// Delete a task
+// Enhanced delete endpoint
 router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { date } = req.query;
+
   try {
-    await Task.findByIdAndDelete(req.params.id);
-    res.json({ message: "Task deleted successfully" });
+    const task = await Task.findById(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    if (date) {
+      // Parse the date string (YYYY-MM-DD format)
+      const targetDate = new Date(date);
+      if (isNaN(targetDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      
+      // Normalize dates for comparison (ignore time components)
+      targetDate.setHours(0, 0, 0, 0);
+      
+      // Delete specific date
+      const initialLength = task.weekHours.length;
+      task.weekHours = task.weekHours.filter(wh => {
+        const whDate = new Date(wh.date);
+        whDate.setHours(0, 0, 0, 0);
+        return whDate.getTime() !== targetDate.getTime();
+      });
+
+      if (task.weekHours.length === initialLength) {
+        return res.status(404).json({ message: "Date not found in task" });
+      }
+
+      if (task.weekHours.length === 0) {
+        await Task.findByIdAndDelete(id);
+        return res.json({ message: "Task deleted (no remaining dates)" });
+      }
+
+      await task.save();
+      return res.json({ 
+        message: "Date deleted successfully", 
+        task: {
+          ...task.toObject(),
+          weekHours: task.weekHours.map(wh => ({
+            ...wh,
+            date: wh.date.toISOString()
+          }))
+        }
+      });
+    } else {
+      await Task.findByIdAndDelete(id);
+      return res.json({ message: "Task deleted successfully" });
+    }
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete task" });
+    console.error("Delete error:", error);
+    res.status(500).json({ 
+      message: "Failed to delete task", 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

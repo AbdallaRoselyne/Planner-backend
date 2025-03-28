@@ -5,6 +5,13 @@ const router = express.Router();
 
 // ➤ Add a new resource request
 router.post("/", async (req, res) => {
+  const { requestedName, Task, hours, project, requester, department, Notes } = req.body;
+
+  // Validate required fields
+  if (!requestedName || !Task || !hours || !project || !requester || !department) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
   try {
     const newRequest = new Request(req.body);
     await newRequest.save();
@@ -14,10 +21,40 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ➤ Get all pending requests
-router.get("/", async (req, res) => {
+// ➤ Update a request
+router.put("/:id", async (req, res) => {
   try {
-    const requests = await Request.find({ status: "Pending" });
+    const request = await Request.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    res.json(request);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// ➤ Delete a request
+router.delete("/:id", async (req, res) => {
+  try {
+    const request = await Request.findByIdAndDelete(req.params.id);
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    res.json({ message: "Request deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ➤ Get all pending requests (with optional filtering)
+router.get("/", async (req, res) => {
+  const { project, date } = req.query; // Query parameters for filtering
+  const filter = { status: "Pending" };
+
+  if (project) filter.project = project;
+  if (date) filter.date = { $gte: new Date(date) }; // Filter by date (greater than or equal)
+
+  try {
+    const requests = await Request.find(filter).sort({ createdAt: -1 }); // Sort by creation date (newest first)
     res.json(requests);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -26,10 +63,22 @@ router.get("/", async (req, res) => {
 
 // ➤ Approve a request (Keep in `requests`, Copy to `tasks`)
 router.put("/:id/approve", async (req, res) => {
-  const { approvedHours, timeSlot } = req.body;
+  const { weekHours } = req.body;
 
-  if (!approvedHours || !timeSlot) {
-    return res.status(400).json({ error: "Missing required fields: approvedHours, timeSlot" });
+  if (!weekHours || !Array.isArray(weekHours)) {
+    return res.status(400).json({ error: "Missing or invalid weekHours array" });
+  }
+
+  // Validate weekHours
+  const totalHours = weekHours.reduce((sum, day) => sum + (day.hours || 0), 0);
+  if (totalHours > 40) {
+    return res.status(400).json({ error: "Maximum 40 hours allowed per week" });
+  }
+
+  for (const day of weekHours) {
+    if (day.hours > 8) {
+      return res.status(400).json({ error: "Maximum 8 hours allowed per day" });
+    }
   }
 
   try {
@@ -38,8 +87,7 @@ router.put("/:id/approve", async (req, res) => {
 
     // Update the request in `requests`
     request.status = "Approved";
-    request.approvedHours = approvedHours;
-    request.timeSlot = timeSlot;
+    request.weekHours = weekHours;
     await request.save();
 
     // Save the approved task in `tasks`
@@ -52,10 +100,10 @@ router.put("/:id/approve", async (req, res) => {
       project: request.project,
       requester: request.requester,
       department: request.department,
+      date: request.date,
       Notes: request.Notes,
       status: "Approved",
-      approvedHours,
-      timeSlot,
+      weekHours, // Save the weekHours array
     });
 
     await newTask.save();
@@ -89,6 +137,7 @@ router.put("/:id/reject", async (req, res) => {
       email: request.email,
       Task: request.Task,
       hours: request.hours,
+      date: request.date,
       projectCode: request.projectCode,
       project: request.project,
       requester: request.requester,
