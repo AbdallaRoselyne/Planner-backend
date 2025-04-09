@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const Task = require("../models/Task");
+const Complete = require("../models/Complete");
+
 
 // Helper function to normalize dates
 const normalizeDate = (date) => {
@@ -57,13 +59,30 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Fetch tasks for a specific user (based on email)
+// Add this route to your existing tasks.js backend file
 router.get("/user/:email", async (req, res) => {
   try {
-    const tasks = await Task.find({ email: req.params.email }); // Filter by email
+    const userEmail = req.params.email;
+    console.log(`Fetching tasks for email: ${userEmail}`); // Debug log
+    
+    if (!userEmail) {
+      return res.status(400).json({ message: "Email parameter is required" });
+    }
+
+    // Case-insensitive search for email
+    const tasks = await Task.find({ 
+      email: { $regex: new RegExp(`^${userEmail}$`, 'i') }
+    }).sort({ createdAt: -1 });
+
+    console.log(`Found ${tasks.length} tasks for ${userEmail}`); // Debug log
+    
     res.json(tasks);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch user tasks", error: error.message });
+    console.error('Error fetching user tasks:', error);
+    res.status(500).json({ 
+      message: "Failed to fetch user tasks", 
+      error: error.message 
+    });
   }
 });
 
@@ -170,5 +189,6 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
