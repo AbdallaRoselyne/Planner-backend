@@ -46,6 +46,7 @@ app.use("/api/tasks", tasksRoutes); // This will handle all /api/tasks routes
 app.use("/api/tasks", completionsRoutes); // Add this line to handle completion routes under /api/tasks
 app.use("/api/projects", projectsRoutes);
 app.use("/api/members", membersRoutes);
+app.use("/api/completions", completionsRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

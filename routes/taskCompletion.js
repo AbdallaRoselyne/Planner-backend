@@ -9,6 +9,76 @@ const normalizeDate = (date) => {
   d.setUTCHours(0, 0, 0, 0);
   return d;
 };
+// Get completions with filters
+router.get('/', async (req, res) => {
+  try {
+    const { userEmail, startDate, endDate } = req.query;
+    
+    if (!userEmail) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'User email is required' 
+      });
+    }
+
+    const filter = { userEmail };
+    
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const completions = await Complete.find(filter)
+      .sort({ date: -1 })
+      .populate('task', 'Task project requester');
+      
+    res.json({
+      success: true,
+      data: completions
+    });
+  } catch (error) {
+    console.error('Error fetching completions:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch completions', 
+      error: error.message 
+    });
+  }
+});
+
+// Get all completions (admin only)
+router.get('/all', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    const filter = {};
+    
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const completions = await Complete.find(filter)
+      .sort({ date: -1 })
+      .populate('task', 'Task project requester');
+      
+    res.json({
+      success: true,
+      data: completions
+    });
+  } catch (error) {
+    console.error('Error fetching all completions:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch completions', 
+      error: error.message 
+    });
+  }
+});
 
 router.post("/:taskId/complete", async (req, res) => {
   const { taskId } = req.params;
