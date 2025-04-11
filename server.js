@@ -11,30 +11,17 @@ const cors = require("cors");
 const WebSocket = require("ws");
 
 dotenv.config();
-
-// Connect to the database
 connectDB();
 
 const app = express();
 
-// CORS configuration
+// CORS
 app.use(
   cors({
-    origin: ["http://localhost:3000"], 
+    origin: ["http://localhost:3000", process.env.CLIENT_URL],
     credentials: true,
   })
 );
-
-// WebSocket server
-const wss = new WebSocket.Server({ port: 8080 });
-
-wss.on("connection", (ws) => {
-  console.log("New client connected");
-
-  ws.on("close", () => {
-    console.log("Client disconnected");
-  });
-});
 
 app.use(express.json());
 
@@ -42,8 +29,8 @@ app.use(express.json());
 app.use("/", authRoutes);
 app.use("/auth", authRoutes);
 app.use("/api/requests", requestsRoutes);
-app.use("/api/tasks", tasksRoutes); // This will handle all /api/tasks routes
-app.use("/api/tasks", completionsRoutes); // Add this line to handle completion routes under /api/tasks
+app.use("/api/tasks", tasksRoutes);
+app.use("/api/tasks", completionsRoutes);
 app.use("/api/projects", projectsRoutes);
 app.use("/api/members", membersRoutes);
 app.use("/api/completions", completionsRoutes);
@@ -52,6 +39,19 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-// Start the server
+// ✅ Start Express server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT}`)
+);
+
+// ✅ Attach WebSocket to the SAME server
+const wss = new WebSocket.Server({ server });
+
+wss.on("connection", (ws) => {
+  console.log("New client connected");
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+});
